@@ -15,7 +15,6 @@ AHouse::AHouse()
 void AHouse::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 // Called every frame
@@ -24,3 +23,9 @@ void AHouse::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
+FHouseBounds AHouse::GetBounds() const
+{
+	FVector Origin, Extent;
+	GetActorBounds(true, Origin, Extent);
+	return {Origin, Extent};
+}

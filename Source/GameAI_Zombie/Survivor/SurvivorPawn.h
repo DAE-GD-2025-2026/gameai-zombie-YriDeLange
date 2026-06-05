@@ -60,6 +60,7 @@ public:
 	
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
+	TArray<FVector> CalculatePath(const FVector& TargetLocation) const;
 	void StartRunning();
 	void StopRunning();
 	

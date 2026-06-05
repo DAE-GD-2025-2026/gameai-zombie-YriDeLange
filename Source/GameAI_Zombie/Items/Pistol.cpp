@@ -9,6 +9,7 @@ APistol::APistol()
 {
 	ItemType = EItemType::Pistol;
 	Damage = 5;
+	Value = FMath::RandRange(4, 10);
 }
 
 void APistol::UseItem(ASurvivorPawn& Survivor)
@@ -23,7 +24,5 @@ void APistol::UseItem(ASurvivorPawn& Survivor)
 	{
 		HitPawn->TakeDamage(Damage, FDamageEvent{}, Survivor.GetController(), &Survivor);
 	}
-	
-	// TODO hitting & missing score
 }
 
