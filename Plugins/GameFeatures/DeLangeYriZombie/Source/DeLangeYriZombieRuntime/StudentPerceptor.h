@@ -10,6 +10,8 @@
 #include "Perception/AISense_Damage.h"
 #include "StudentPerceptor.generated.h"
 
+class UBlackboardComponent;
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class DELANGEYRIZOMBIERUNTIME_API UStudentPerceptor : public UActorComponent
 {
@@ -23,4 +25,7 @@ public:
 
 	UFUNCTION()
 	virtual void OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);
+
+protected:
+	UBlackboardComponent* GetBlackboard() const;
 };
