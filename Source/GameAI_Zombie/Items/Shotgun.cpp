@@ -11,6 +11,7 @@ AShotgun::AShotgun()
 {
 	ItemType = EItemType::Shotgun;
 	Damage = 2;
+	Value = FMath::RandRange(2, 4);
 }
 
 void AShotgun::UseItem(ASurvivorPawn& Survivor)
@@ -34,7 +35,5 @@ void AShotgun::UseItem(ASurvivorPawn& Survivor)
 			bHasHitAnyShot = true;
 		}
 	}
-	
-	// TODO hitting & missing score
 }
 

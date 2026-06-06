@@ -6,12 +6,14 @@
 #include "Common/HealthComponent.h"
 #include "Common/InventoryComponent.h"
 #include "Common/StaminaComponent.h"
+#include "NavigationSystem.h"
+#include "NavigationPath.h"
 
 ASurvivorPawn::ASurvivorPawn()
 {
 	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	
+
 	// Adding components
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>("HealthComponent");
 	StaminaComponent = CreateDefaultSubobject<UStaminaComponent>("StaminaComponent");
@@ -21,10 +23,10 @@ ASurvivorPawn::ASurvivorPawn()
 	AddOwnedComponent(StaminaComponent);
 	AddOwnedComponent(FloatingPawnMovement);
 	AddOwnedComponent(InventoryComponent);
-	
+
 	// Senses
 	PerceptionComp = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("PerceptionComp"));
-    
+
 	// ---- Sight Sense ----
 	SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
 	SightConfig->SightRadius = 1000.0f;
@@ -47,7 +49,7 @@ ASurvivorPawn::ASurvivorPawn()
 void ASurvivorPawn::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	if (PerceptionComp)
 	{
 		PerceptionComp->OnTargetPerceptionUpdated.AddDynamic(this, &ASurvivorPawn::OnPerceptionUpdated);
@@ -84,4 +86,26 @@ void ASurvivorPawn::StopRunning()
 bool ASurvivorPawn::IsRunning() const
 {
 	return bIsRunning;
+}
+
+TArray<FVector> ASurvivorPawn::CalculatePath(const FVector& TargetLocation) const
+{
+	TArray<FVector> Path = {};
+	// 1. Get the Navigation System
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (!NavSys) return Path;
+	FVector StartLocation = GetActorLocation();
+
+	AActor* ContextActor = Cast<AActor>(GetController());
+	// 2. Find the path synchronously
+	UNavigationPath* NavPath = NavSys->FindPathToLocationSynchronously(GetWorld(), StartLocation, TargetLocation,
+	                                                                   ContextActor);
+
+	// 3. Extract the path points
+	if (NavPath && NavPath->IsValid())
+	{
+		return NavPath->PathPoints;
+	}
+
+	return Path;
 }

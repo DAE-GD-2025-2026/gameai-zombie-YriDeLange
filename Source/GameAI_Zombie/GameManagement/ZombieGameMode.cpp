@@ -112,11 +112,6 @@ void AZombieGameMode::SpreadHouses(TArray<AActor*> const& Houses) const
     if (Houses.Num() < 2) return;
 
     // ---------- 1. capture initial bounds ----------
-    struct FHouseBounds
-    {
-        FVector Origin;
-        FVector Extent;
-    };
     TMap<AActor*, FHouseBounds> BoundsMap;
     for (AActor* House : Houses)
     {
