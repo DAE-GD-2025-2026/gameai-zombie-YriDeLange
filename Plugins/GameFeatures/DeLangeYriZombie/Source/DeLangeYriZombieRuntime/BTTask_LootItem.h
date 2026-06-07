@@ -4,27 +4,27 @@
 
 #include "CoreMinimal.h"
 #include "BehaviorTree/BTTaskNode.h"
-#include "BTTask_FleeFromThreat.generated.h"
+#include "BTTask_LootItem.generated.h"
+
+class ABaseItem;
 
 UCLASS()
-class DELANGEYRIZOMBIERUNTIME_API UBTTask_FleeFromThreat : public UBTTaskNode
+class DELANGEYRIZOMBIERUNTIME_API UBTTask_LootItem : public UBTTaskNode
 {
 	GENERATED_BODY()
 
 public:
-	UBTTask_FleeFromThreat();
+	UBTTask_LootItem();
 
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
+	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "Blackboard")
-	FBlackboardKeySelector TargetLocationKey;
-
-	UPROPERTY(EditAnywhere, Category = "Flee")
-	float FleeProjectDistance{ 1500.f };
+	FBlackboardKeySelector LootTargetKey;
 
 private:
-	TArray<FVector> CachedPath;
-	int32 PathIndex{ 0 };
+	UPROPERTY()
+	TObjectPtr<ABaseItem> TargetItem = nullptr;
 };

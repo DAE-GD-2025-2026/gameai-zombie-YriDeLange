@@ -1,13 +1,6 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "StudentPerceptor.h"
-#include "AIController.h"
-#include "BehaviorTree/BlackboardComponent.h"
-#include "Zombies/BaseZombie.h"
-#include "GameFramework/Pawn.h"
-
-static const FName TargetEnemyKey{ "TargetEnemy" };
-static const FName TargetEnemyLocationKey{ "TargetEnemyLocation" };
 
 UStudentPerceptor::UStudentPerceptor()
 {
@@ -24,42 +17,109 @@ void UStudentPerceptor::BeginPlay()
 	}
 }
 
-UBlackboardComponent* UStudentPerceptor::GetBlackboard() const
+void UStudentPerceptor::RefreshThreatSeen(ABaseZombie* Zombie)
 {
-	if (const APawn* Pawn = Cast<APawn>(GetOwner()))
-		if (AAIController* AI = Cast<AAIController>(Pawn->GetController()))
-			return AI->GetBlackboardComponent();
-	return nullptr;
+	if (!Zombie) return;
+	const float Now = GetWorld()->GetTimeSeconds();
+	for (FKnownThreat& Threat : KnownThreats)
+	{
+		if (Threat.Zombie == Zombie)
+		{
+			Threat.LastSeenLocation = Zombie->GetActorLocation();
+			Threat.LastSeenTime = Now;
+			return;
+		}
+	}
+	RememberThreat(Zombie, Zombie->GetActorLocation());
+}
+
+void UStudentPerceptor::MarkHouseSearched(AHouse* House)
+{
+	for (FKnownHouse& Known : KnownHouses)
+	{
+		if (Known.House == House)
+		{
+			Known.bEverSearched = true;
+			Known.LastSearchedTime = GetWorld()->GetTimeSeconds();
+			return;
+		}
+	}
+}
+
+void UStudentPerceptor::RememberThreat(ABaseZombie* Zombie, const FVector& Location)
+{
+	const float Now = GetWorld()->GetTimeSeconds();
+
+	for (FKnownThreat& Threat : KnownThreats)
+	{
+		if (Threat.Zombie == Zombie)
+		{
+			Threat.LastSeenLocation = Location;
+			Threat.LastSeenTime = Now;
+			return;
+		}
+	}
+
+	FKnownThreat NewThreat;
+	NewThreat.Zombie = Zombie;
+	NewThreat.LastSeenLocation = Location;
+	NewThreat.LastSeenTime = Now;
+	KnownThreats.Add(NewThreat);
+}
+
+void UStudentPerceptor::RememberItem(ABaseItem* Item, const FVector& Location)
+{
+	for (FKnownItem& Known : KnownItems)
+	{
+		if (Known.Item == Item)
+		{
+			Known.Location = Location;
+			return;
+		}
+	}
+
+	FKnownItem NewItem;
+	NewItem.Item = Item;
+	NewItem.Type = Item->GetItemType();
+	NewItem.Location = Location;
+	KnownItems.Add(NewItem);
+}
+
+void UStudentPerceptor::RememberHouse(AHouse* House)
+{
+	for (const FKnownHouse& Known : KnownHouses)
+	{
+		if (Known.House == House)
+		{
+			return;
+		}
+	}
+
+	FKnownHouse NewHouse;
+	NewHouse.House = House;
+	NewHouse.Location = House->GetBounds().Origin;
+	KnownHouses.Add(NewHouse);
 }
 
 void UStudentPerceptor::OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Perception fired for %s | Sensed=%d"),
-		*GetNameSafe(Actor), Stimulus.WasSuccessfullySensed());
-
-	UBlackboardComponent* BB = GetBlackboard();
-	if (!BB)
-	{
-		UE_LOG(LogTemp, Error, TEXT("  -> Blackboard is NULL"));
-		return;
-	}
 	if (!Actor) return;
 
-	if (Actor->IsA<ABaseZombie>())
+	if (!Stimulus.WasSuccessfullySensed())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("  -> It's a zombie, writing keys"));
-		if (Stimulus.WasSuccessfullySensed())
-		{
-			BB->SetValueAsObject(TargetEnemyKey, Actor);
-			BB->SetValueAsVector(TargetEnemyLocationKey, Stimulus.StimulusLocation);
-		}
-		else
-		{
-			BB->ClearValue(TargetEnemyKey);
-		}
+		return;
 	}
-	else
+
+	if (ABaseZombie* Zombie = Cast<ABaseZombie>(Actor))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("  -> Not a zombie (class: %s)"), *Actor->GetClass()->GetName());
+		RememberThreat(Zombie, Stimulus.StimulusLocation);
+	}
+	else if (ABaseItem* Item = Cast<ABaseItem>(Actor))
+	{
+		RememberItem(Item, Stimulus.StimulusLocation);
+	}
+	else if (AHouse* House = Cast<AHouse>(Actor))
+	{
+		RememberHouse(House);
 	}
 }

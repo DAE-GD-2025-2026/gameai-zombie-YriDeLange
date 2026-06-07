@@ -2,6 +2,8 @@
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Survivor/SurvivorPawn.h"
+#include "NavigationSystem.h"
+#include "NavigationData.h"
 
 UBTTask_FleeFromThreat::UBTTask_FleeFromThreat()
 {
@@ -26,25 +28,44 @@ void UBTTask_FleeFromThreat::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* 
 	ASurvivorPawn* Survivor = Cast<ASurvivorPawn>(AI->GetPawn());
 	if (!Survivor) { FinishLatentTask(OwnerComp, EBTNodeResult::Failed); return; }
 
-	const FVector ThreatLocation = BB->GetValueAsVector(TargetLocationKey.SelectedKeyName);
-	const FVector MyLocation = Survivor->GetActorLocation();
-
-	FVector AwayDir = MyLocation - ThreatLocation;
-	AwayDir.Z = 0.f;
-
-	if (AwayDir.Size() >= SafeDistance)
+	if (!BB->IsVectorValueSet(TargetLocationKey.SelectedKeyName))
 	{
-		BB->ClearValue(TargetLocationKey.SelectedKeyName);
 		Survivor->StopRunning();
 		FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
 		return;
 	}
 
-	const FVector FleeTarget = MyLocation + AwayDir.GetSafeNormal() * FleeProjectDistance;
-	CachedPath = Survivor->CalculatePath(FleeTarget);
-	PathIndex = (CachedPath.Num() > 1) ? 1 : 0;
+	const FVector ThreatLocation = BB->GetValueAsVector(TargetLocationKey.SelectedKeyName);
+	const FVector MyLocation = Survivor->GetActorLocation();
+
+	FVector AwayDir = MyLocation - ThreatLocation;
+	AwayDir.Z = 0.f;
+	if (AwayDir.IsNearlyZero())
+	{
+		AwayDir = Survivor->GetActorForwardVector();
+		AwayDir.Z = 0.f;
+	}
+
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Survivor->GetWorld());
+	FNavLocation FleeNavPoint;
+	bool bHaveFleePoint = false;
+	if (NavSys)
+	{
+		const FVector RawTarget = MyLocation + AwayDir.GetSafeNormal() * FleeProjectDistance;
+		bHaveFleePoint = NavSys->ProjectPointToNavigation(RawTarget, FleeNavPoint, FVector(1000.f, 1000.f, 1000.f));
+	}
 
 	Survivor->StartRunning();
+
+	if (bHaveFleePoint)
+	{
+		CachedPath = Survivor->CalculatePath(FleeNavPoint.Location);
+		PathIndex = (CachedPath.Num() > 1) ? 1 : 0;
+	}
+	else
+	{
+		CachedPath.Reset();
+	}
 
 	if (CachedPath.IsValidIndex(PathIndex))
 	{
@@ -52,13 +73,14 @@ void UBTTask_FleeFromThreat::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* 
 		ToWaypoint.Z = 0.f;
 		const FVector MoveDir = ToWaypoint.GetSafeNormal();
 
-		const FRotator NewRot = FMath::RInterpTo(Survivor->GetActorRotation(), MoveDir.Rotation(), DeltaSeconds, 8.f);
-		Survivor->SetActorRotation(NewRot);
+		FVector ToThreat = ThreatLocation - MyLocation;
+		ToThreat.Z = 0.f;
+		if (!ToThreat.IsNearlyZero())
+		{
+			const FRotator NewRot = FMath::RInterpTo(Survivor->GetActorRotation(), ToThreat.Rotation(), DeltaSeconds, 8.f);
+			Survivor->SetActorRotation(NewRot);
+		}
 
 		Survivor->AddMovementInput(MoveDir, 1.f);
-	}
-	else
-	{
-		Survivor->AddMovementInput(AwayDir.GetSafeNormal(), 1.f);
 	}
 }
